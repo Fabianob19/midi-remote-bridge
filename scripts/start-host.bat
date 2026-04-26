@@ -8,6 +8,8 @@ echo.
 echo  Conecte a controladora MIDI e acesse:
 echo  http://localhost:9901
 echo.
+echo  (Esta janela pode ser MINIMIZADA, nao feche!)
+echo.
 
 cd /d "%~dp0.."
 node src/host.js %*

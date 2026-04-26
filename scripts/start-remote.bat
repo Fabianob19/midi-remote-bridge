@@ -9,6 +9,8 @@ echo  Certifique-se que o loopMIDI esta rodando!
 echo  Painel: http://localhost:9902
 echo  WebSocket: porta 9900 (aguardando host)
 echo.
+echo  (Esta janela pode ser MINIMIZADA, nao feche!)
+echo.
 
 cd /d "%~dp0.."
 node src/remote.js %*
