@@ -121,9 +121,12 @@ Deve listar os dispositivos MIDI conectados, ex:
 # Depois:
 npm run remote
 
-# Ou com atalho Windows:
-scripts\start-remote.bat
+# Ou com atalhos Windows:
+scripts\start-remote.bat             # Abre janela (pode minimizar)
+scripts\start-remote-minimized.bat   # Já inicia oculto na barra de tarefas
 ```
+
+> **⚠️ IMPORTANTE:** Não feche a janela preta (CMD). Se fechar, o programa para e a conexão cai! Se quiser ocultar, use o atalho `minimized`.
 
 - Painel web: `http://localhost:9902`
 - WebSocket escuta na porta `9900`
@@ -134,9 +137,12 @@ scripts\start-remote.bat
 ```bash
 npm run host
 
-# Ou com atalho Windows:
-scripts\start-host.bat
+# Ou com atalhos Windows:
+scripts\start-host.bat             # Abre janela (pode minimizar)
+scripts\start-host-minimized.bat   # Já inicia oculto na barra de tarefas
 ```
+
+> **⚠️ IMPORTANTE:** Não feche a janela preta (CMD). Se fechar, o programa para e a conexão cai! Se quiser ocultar, use o atalho `minimized`.
 
 - Painel web: `http://localhost:9901`
 - Selecionar a controladora MIDI no painel
