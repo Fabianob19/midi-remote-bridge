@@ -134,16 +134,22 @@ scripts\start-remote.bat
 ```bash
 npm run host
 
-# Ou via CLI direto:
-npm run host -- --remote 10.147.20.X:9900
-
 # Ou com atalho Windows:
 scripts\start-host.bat
 ```
 
 - Painel web: `http://localhost:9901`
 - Selecionar a controladora MIDI no painel
-- Informar o IP ZeroTier do PC remoto
+- Informar o **IP ZeroTier do PC remoto (vMix)** no campo "IP do Remoto"
+
+**⚠️ Como descobrir o IP do PC remoto:**
+No PC que roda o **vMix**, abra o ZeroTier e copie o IP dele (ex: `10.147.20.53`).
+Depois no painel do Host, coloque: `10.147.20.53:9900`
+
+Ou já passe direto na CLI:
+```bash
+npm run host -- --remote 10.147.20.53:9900
+```
 
 ### 3. Configurar vMix
 
