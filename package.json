@@ -1,0 +1,25 @@
+{
+  "name": "usb-remoto",
+  "version": "1.0.0",
+  "description": "Bridge MIDI bidirecional via WebSocket — Controladora MIDI remota para vMix",
+  "main": "src/host.js",
+  "scripts": {
+    "host": "node src/host.js",
+    "remote": "node src/remote.js",
+    "list": "node -e \"const m=require('easymidi');console.log('\\n🎛️  MIDI Inputs:',m.getInputs());console.log('🎛️  MIDI Outputs:',m.getOutputs())\""
+  },
+  "keywords": [
+    "midi",
+    "remote",
+    "websocket",
+    "vmix",
+    "bridge"
+  ],
+  "author": "André Gribel",
+  "license": "MIT",
+  "dependencies": {
+    "easymidi": "^3.2.0",
+    "express": "^5.2.1",
+    "ws": "^8.20.0"
+  }
+}

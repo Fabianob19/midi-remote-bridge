@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>USB-Remoto — MIDI Bridge</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-icon">🎛️</span>
+          <h1>USB-Remoto</h1>
+        </div>
+        <span class="badge" id="modeBadge">---</span>
+      </div>
+      <div class="header-right">
+        <div class="connection-indicator" id="wsIndicator">
+          <span class="dot"></span>
+          <span class="label">Desconectado</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Connection Panel -->
+    <section class="card" id="connectionCard">
+      <h2>🔌 Conexão Remota</h2>
+      <div class="connection-form">
+        <div class="input-group">
+          <label for="remoteHost">IP do Remoto (ZeroTier)</label>
+          <div class="input-with-button">
+            <input type="text" id="remoteHost" placeholder="ex: 10.147.20.5:9900">
+            <button class="btn btn-primary" id="btnConnectRemote">Conectar</button>
+            <button class="btn btn-danger hidden" id="btnDisconnectRemote">Desconectar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MIDI Devices -->
+    <section class="card">
+      <h2>🎹 Dispositivos MIDI</h2>
+      <div class="devices-grid">
+        <div class="device-panel">
+          <h3>📥 Input (Controladora)</h3>
+          <select id="midiInput" class="select">
+            <option value="">Selecionar...</option>
+          </select>
+        </div>
+        <div class="device-panel">
+          <h3>📤 Output (Feedback/LEDs)</h3>
+          <select id="midiOutput" class="select">
+            <option value="">Selecionar...</option>
+          </select>
+        </div>
+      </div>
+      <div class="device-actions">
+        <button class="btn btn-primary" id="btnSelectDevice">Conectar Device</button>
+        <button class="btn btn-secondary" id="btnRefreshDevices">🔄 Atualizar</button>
+        <button class="btn btn-danger hidden" id="btnDisconnectDevice">Desconectar</button>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-row">
+      <div class="stat-card">
+        <span class="stat-value" id="statSent">0</span>
+        <span class="stat-label">📤 Enviadas</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="statReceived">0</span>
+        <span class="stat-label">📥 Recebidas</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="statLatency">--</span>
+        <span class="stat-label">⚡ Latência</span>
+      </div>
+    </section>
+
+    <!-- MIDI Monitor -->
+    <section class="card">
+      <div class="monitor-header">
+        <h2>📊 Monitor MIDI</h2>
+        <button class="btn btn-small btn-secondary" id="btnClearMonitor">Limpar</button>
+      </div>
+
+      <!-- Fader Visualization -->
+      <div class="fader-bank" id="faderBank">
+        <h3>Faders (CC)</h3>
+        <div class="faders" id="faderContainer">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Message Log -->
+      <div class="message-log" id="messageLog">
+        <div class="log-empty">Aguardando mensagens MIDI...</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
