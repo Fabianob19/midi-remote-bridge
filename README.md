@@ -6,6 +6,8 @@
 OPERADOR / Host (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ VMIX / Remote (loopMIDI → vMix/OBS)
 ```
 
+![Painel Host — Interface tática com faders, network status e terminal log](assets/screenshots/panel-host.png)
+
 ---
 
 ## Features v3.0
@@ -45,6 +47,8 @@ OPERADOR / Host (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ 
 
 > **⚠️ OBRIGATÓRIO: Execute o `usb-remoto.exe` sempre como Administrador.**
 > Clique com o botão direito → "Executar como administrador". O acesso a dispositivos MIDI USB e portas de rede requer privilégios elevados.
+
+![Tela de seleção de modo — OPERADOR ou VMIX](assets/screenshots/terminal-start.png)
 
 1. Baixe o `usb-remoto.exe` da [Releases](../../releases)
 2. Copie para ambos os PCs
@@ -93,6 +97,8 @@ MIDI Outputs: [ 'Launch Control XL', 'APC MINI', 'Microsoft GS Wavetable Synth' 
 
 ### vMix / Remote (onde o software de transmissão roda)
 
+![Painel Remote — Recepção MIDI com faders e device routing](assets/screenshots/panel-remoto.png)
+
 ```bash
 # Modo simples
 npm run remote
@@ -136,6 +142,8 @@ Abra o ZeroTier no PC onde roda o vMix → copie o IP (ex: `10.147.20.53`).
 ## Multi-Controladoras (Novo v3.0)
 
 ### Como funciona
+
+![Multi-Device — Abas táticas com cores por controladora](assets/screenshots/multi-device.png)
 
 Conecte até **4 controladoras USB** simultaneamente no Operador (Host). O painel web mostra **abas com cores táticas** para cada device:
 
