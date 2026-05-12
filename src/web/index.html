@@ -3,105 +3,137 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>USB-Remoto — MIDI Bridge</title>
+  <title>USB-Remoto | Tactical Console</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="container">
+  
+  <div class="console-grid">
     <!-- Header -->
-    <header class="header">
-      <div class="header-left">
-        <div class="logo">
-          <span class="logo-icon">🎛️</span>
-          <h1>USB-Remoto</h1>
-        </div>
-        <span class="badge" id="modeBadge">---</span>
+    <div class="header-bar">
+      <div class="brand">
+        <h1>USB-REMOTO</h1>
+        <span class="brand-badge" id="modeBadge">HOST</span>
       </div>
-      <div class="header-right">
-        <div class="connection-indicator" id="wsIndicator">
-          <span class="dot"></span>
-          <span class="label">Desconectado</span>
-        </div>
+      <div class="conn-status">
+        <div class="conn-led" id="wsIndicator"></div>
+        <span id="wsStatusText">OFFLINE</span>
       </div>
-    </header>
+    </div>
 
-    <!-- Connection Panel -->
-    <section class="card" id="connectionCard">
-      <h2>🔌 Conexão Remota</h2>
-      <div class="connection-form">
-        <div class="input-group">
-          <label for="remoteHost">IP do Remoto (ZeroTier)</label>
-          <div class="input-with-button">
-            <input type="text" id="remoteHost" placeholder="ex: 10.147.20.5:9900">
-            <button class="btn btn-primary" id="btnConnectRemote">Conectar</button>
-            <button class="btn btn-danger hidden" id="btnDisconnectRemote">Desconectar</button>
+    <!-- LEFT COLUMN: Racks -->
+    <div class="rack-col">
+
+      <!-- Network Info Rack (IPs) -->
+      <div class="tactical-box rack-module" id="networkInfoCard">
+        <div class="module-title">INTERFACES DE REDE</div>
+        <div id="networkIpList" style="font-size:11px; color: var(--text-mid);">
+          <span style="color:var(--text-low)">Carregando...</span>
+        </div>
+      </div>
+      
+      <!-- Network Rack (Conexão com Remoto) -->
+      <div class="tactical-box rack-module" id="remoteConnectionCard">
+        <div class="module-title">NETWORK LINK</div>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label class="form-label" for="remoteHost">IP DO REMOTO</label>
+            <input type="text" id="remoteHost" class="input-tactical" placeholder="10.0.0.1">
+          </div>
+          <div class="form-group" style="width: 80px; margin-bottom: 0;">
+            <label class="form-label" for="remotePort">PORTA</label>
+            <input type="text" id="remotePort" class="input-tactical" value="9900">
+          </div>
+        </div>
+        <div class="flex-row">
+          <button class="btn-mech primary btn-block" id="btnConnectRemote">CONNECT</button>
+          <button class="btn-mech danger btn-block hidden" id="btnDisconnectRemote">DISCONNECT</button>
+        </div>
+      </div>
+
+      <!-- MIDI Routing Rack — Multi-Device Slots -->
+      <div class="tactical-box rack-module">
+        <div class="module-title" style="justify-content: space-between;">
+          <span>MIDI ROUTING</span>
+          <button class="btn-mech" id="btnAddDevice" title="Adicionar controladora" style="padding: 2px 10px; font-size: 10px;">+ ADD</button>
+        </div>
+        
+        <!-- Slots de dispositivos gerados dinamicamente pelo app.js -->
+        <div id="deviceSlots">
+          <div style="color:var(--text-low); font-size:11px; padding: 10px 0; text-align:center; font-style:italic;">
+            Nenhum dispositivo conectado
+          </div>
+        </div>
+
+        <!-- Formulário de novo slot (expansível) -->
+        <div id="newDeviceForm" class="hidden" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-dim);">
+          <div class="form-group">
+            <label class="form-label" for="newMidiInput">INPUT (HARDWARE)</label>
+            <select id="newMidiInput" class="input-tactical select-tactical">
+              <option value="">-- NENHUM --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newMidiOutput">OUTPUT (FEEDBACK)</label>
+            <select id="newMidiOutput" class="input-tactical select-tactical">
+              <option value="">-- NENHUM --</option>
+            </select>
+          </div>
+          <div class="flex-row">
+            <button class="btn-mech primary btn-block" id="btnConfirmAddDevice">CONNECT</button>
+            <button class="btn-mech" id="btnCancelAddDevice">✕</button>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- MIDI Devices -->
-    <section class="card">
-      <h2>🎹 Dispositivos MIDI</h2>
-      <div class="devices-grid">
-        <div class="device-panel">
-          <h3>📥 Input (Controladora)</h3>
-          <select id="midiInput" class="select">
-            <option value="">Selecionar...</option>
-          </select>
+      <div class="tactical-footer">
+        <div class="credit-line">DEV // FABIANO BRANDÃO</div>
+        <div class="credit-line">COLLAB // ANDRÉ GRIBEL</div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Monitor & Stats -->
+    <div class="main-col">
+      
+      <!-- Stats HUD -->
+      <div class="hud-grid">
+        <div class="tactical-box hud-panel">
+          <div class="hud-val highlight" id="msgSent">0</div>
+          <div class="hud-lbl">TX PACKETS</div>
         </div>
-        <div class="device-panel">
-          <h3>📤 Output (Feedback/LEDs)</h3>
-          <select id="midiOutput" class="select">
-            <option value="">Selecionar...</option>
-          </select>
+        <div class="tactical-box hud-panel">
+          <div class="hud-val highlight" id="msgReceived">0</div>
+          <div class="hud-lbl">RX PACKETS</div>
         </div>
-      </div>
-      <div class="device-actions">
-        <button class="btn btn-primary" id="btnSelectDevice">Conectar Device</button>
-        <button class="btn btn-secondary" id="btnRefreshDevices">🔄 Atualizar</button>
-        <button class="btn btn-danger hidden" id="btnDisconnectDevice">Desconectar</button>
-      </div>
-    </section>
-
-    <!-- Stats -->
-    <section class="stats-row">
-      <div class="stat-card">
-        <span class="stat-value" id="statSent">0</span>
-        <span class="stat-label">📤 Enviadas</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value" id="statReceived">0</span>
-        <span class="stat-label">📥 Recebidas</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value" id="statLatency">--</span>
-        <span class="stat-label">⚡ Latência</span>
-      </div>
-    </section>
-
-    <!-- MIDI Monitor -->
-    <section class="card">
-      <div class="monitor-header">
-        <h2>📊 Monitor MIDI</h2>
-        <button class="btn btn-small btn-secondary" id="btnClearMonitor">Limpar</button>
-      </div>
-
-      <!-- Fader Visualization -->
-      <div class="fader-bank" id="faderBank">
-        <h3>Faders (CC)</h3>
-        <div class="faders" id="faderContainer">
-          <!-- Populated by JS -->
+        <div class="tactical-box hud-panel">
+          <div class="hud-val lat" id="latency">--</div>
+          <div class="hud-lbl">LATENCY (MS)</div>
         </div>
       </div>
 
-      <!-- Message Log -->
-      <div class="message-log" id="messageLog">
-        <div class="log-empty">Aguardando mensagens MIDI...</div>
+      <!-- Fader Bank -->
+      <div class="tactical-box monitor-module">
+        <div class="module-title" style="margin: 16px 20px 0;">CC MONITOR</div>
+        <div id="faderTabs" class="fader-tabs"></div>
+        <div id="faderContainer"></div>
       </div>
-    </section>
+
+      <!-- Terminal Log -->
+      <div class="tactical-box">
+        <div class="module-title" style="margin: 16px 20px 0; justify-content: space-between;">
+          <span>TERMINAL LOG</span>
+          <button class="btn-mech" id="btnClearLog" style="padding: 2px 10px; font-size: 9px;">CLEAR</button>
+        </div>
+        <div class="terminal-log" id="logContainer">
+          <div style="color: var(--text-low); text-align: center; padding-top: 20px; font-family: var(--font-sans); font-style: italic;">
+            Aguardando sinal MIDI...
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <script src="app.js"></script>
