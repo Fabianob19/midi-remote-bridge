@@ -3,6 +3,9 @@
  *
  * Converte mensagens MIDI nativas (easymidi) em JSON compacto
  * para transporte via WebSocket, e vice-versa.
+ *
+ * v3.0: Adicionado campo opcional `deviceId` para roteamento
+ *       de múltiplas controladoras sem quebrar compatibilidade.
  */
 
 const MIDI_EVENT_MAP = {
@@ -15,13 +18,19 @@ const MIDI_EVENT_MAP = {
 };
 
 /**
- * Converte evento easymidi em JSON para transporte
+ * Converte evento easymidi em JSON para transporte.
  * @param {string} type - Tipo do evento MIDI (cc, noteon, noteoff, etc.)
  * @param {object} msg - Mensagem easymidi
+ * @param {number} [deviceId=0] - Índice da controladora de origem (multi-device)
  * @returns {object} JSON serializado
  */
-function midiToJson(type, msg) {
-  const base = { type, channel: msg.channel ?? 0, ts: Date.now() };
+function midiToJson(type, msg, deviceId = 0) {
+  const base = {
+    type,
+    channel: msg.channel ?? 0,
+    deviceId,        // Identifica a controladora de origem para roteamento de feedback
+    ts: Date.now(),
+  };
 
   switch (type) {
     case 'cc':
@@ -42,37 +51,45 @@ function midiToJson(type, msg) {
 }
 
 /**
- * Converte JSON de transporte em mensagem easymidi
+ * Converte JSON de transporte em mensagem easymidi.
  * @param {object} json - Objeto JSON recebido via WebSocket
- * @returns {{ type: string, msg: object }} Tipo + mensagem para easymidi
+ * @returns {{ type: string, msg: object, deviceId: number } | null}
  */
 function jsonToMidi(json) {
-  const base = { channel: json.channel ?? 0 };
+  // Remapeamento automático: canal = deviceId (evita conflito multi-device no vMix)
+  const channel = json.deviceId ?? json.channel ?? 0;
+  const base = { channel };
+  const deviceId = json.deviceId ?? 0;
 
   switch (json.type) {
     case 'cc':
       return {
         type: 'cc',
+        deviceId,
         msg: { ...base, controller: json.controller, value: clamp(json.value) },
       };
     case 'noteon':
       return {
         type: 'noteon',
+        deviceId,
         msg: { ...base, note: clamp(json.note), velocity: clamp(json.velocity) },
       };
     case 'noteoff':
       return {
         type: 'noteoff',
+        deviceId,
         msg: { ...base, note: clamp(json.note), velocity: clamp(json.velocity, 0) },
       };
     case 'program':
       return {
         type: 'program',
+        deviceId,
         msg: { ...base, number: clamp(json.number) },
       };
     case 'pitch':
       return {
         type: 'pitch',
+        deviceId,
         msg: { ...base, value: Math.max(0, Math.min(16383, json.value ?? 8192)) },
       };
     default:
@@ -89,10 +106,11 @@ function clamp(val, fallback = 0) {
 }
 
 /**
- * Valida se um JSON é uma mensagem MIDI válida
+ * Valida se um JSON é uma mensagem MIDI válida.
+ * Backward compatible: deviceId é opcional.
  */
 function isValidMidiJson(json) {
-  return json && typeof json.type === 'string' && json.type in MIDI_EVENT_MAP;
+  return !!(json && typeof json.type === 'string' && json.type in MIDI_EVENT_MAP);
 }
 
 module.exports = { midiToJson, jsonToMidi, isValidMidiJson, MIDI_EVENT_MAP };

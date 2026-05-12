@@ -1,36 +1,42 @@
 /**
- * USB-Remoto — REMOTE Server
+ * USB-Remoto — REMOTE Server (v3.0 Multi-Device)
  *
  * Roda no PC REMOTO onde o vMix está rodando.
  *
  * Responsabilidades:
- * 1. WebSocket Server — recebe mensagens MIDI do Host
- * 2. Envia mensagens MIDI para porta virtual loopMIDI → vMix lê
- * 3. Lê feedback MIDI do loopMIDI (vMix Activators) → envia de volta ao Host
+ * 1. WebSocket Server — recebe mensagens MIDI do Host (com deviceId)
+ * 2. Gerencia múltiplos pares loopMIDI output+input por deviceId
+ * 3. Roteia feedback do vMix (Activators) de volta ao Host com o deviceId correto
  * 4. Serve painel web com status da conexão
- *
- * Uso: node src/remote.js [--port PORTA_WS] [--web PORTA_WEB] [--midi-out NOME] [--midi-in NOME]
  */
 
 const easymidi = require('easymidi');
 const WebSocket = require('ws');
 const express = require('express');
 const path = require('path');
+const os = require('os');
+const { exec } = require('child_process');
 const { WS_PORT, WEB_PORT, HEARTBEAT_INTERVAL_MS, CONTROL_TYPES } = require('./shared/constants');
 const { midiToJson, jsonToMidi, isValidMidiJson, MIDI_EVENT_MAP } = require('./shared/midi-protocol');
+const { logEvent, initCrashHandler } = require('./shared/logger');
+const { startBroadcaster } = require('./shared/discovery');
 
 // ── CLI Args ──────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(2));
 const LOCAL_WS_PORT = parseInt(args.port || args.p, 10) || WS_PORT;
-const LOCAL_WEB_PORT = parseInt(args.web || args.w, 10) || WEB_PORT + 1; // 9902 para não conflitar
+const LOCAL_WEB_PORT = parseInt(args.web || args.w, 10) || WEB_PORT + 1;
 const CLI_MIDI_OUT = args['midi-out'] || null;
-const CLI_MIDI_IN = args['midi-in'] || null;
+const CLI_MIDI_IN  = args['midi-in']  || null;
 
 // ── State ─────────────────────────────────────────────────
-let midiOutput = null;   // Enviar para loopMIDI (vMix lê)
-let midiInput = null;    // Ler do loopMIDI (vMix Activators envia)
-let selectedOutputDevice = null;
-let selectedInputDevice = null;
+/**
+ * Array de dispositivos MIDI ativos no lado remoto.
+ * Cada entrada: { id, inputName, outputName, input, output }
+ * O deviceId espelha o deviceId vindo do Host.
+ */
+let midiDevices = [];
+const MAX_DEVICES = 4;
+
 let hostConnected = false;
 let hostSocket = null;
 let messageCount = { sent: 0, received: 0 };
@@ -45,36 +51,63 @@ app.use(express.static(path.join(__dirname, 'web')));
 app.get('/api/devices', (req, res) => {
   try {
     res.json({
-      inputs: easymidi.getInputs(),
-      outputs: easymidi.getOutputs(),
-      selectedInput: selectedInputDevice,
-      selectedOutput: selectedOutputDevice,
+      inputs: safeGetInputs(),
+      outputs: safeGetOutputs(),
+      selectedInput: midiDevices[0]?.inputName || null,
+      selectedOutput: midiDevices[0]?.outputName || null,
+      connectedDevices: midiDevices.map(d => ({ id: d.id, inputName: d.inputName, outputName: d.outputName })),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// API: Adicionar novo par loopMIDI (multi-device)
+app.post('/api/add-device', (req, res) => {
+  const { input, output } = req.body;
+  if (!input && !output) return res.status(400).json({ error: 'input ou output é obrigatório' });
+  if (midiDevices.length >= MAX_DEVICES) {
+    return res.status(400).json({ error: `Máximo de ${MAX_DEVICES} dispositivos atingido` });
+  }
+  try {
+    const device = addMidiDevice(input, output);
+    res.json({ ok: true, device: { id: device.id, inputName: device.inputName, outputName: device.outputName } });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// API: Remover par de dispositivo por ID
+app.post('/api/remove-device', (req, res) => {
+  const { deviceId } = req.body;
+  const removed = removeMidiDevice(deviceId);
+  if (!removed) return res.status(404).json({ error: `Device ${deviceId} não encontrado` });
+  res.json({ ok: true });
+});
+
+// API: Retrocompatibilidade com v2.x
 app.post('/api/select', (req, res) => {
   const { input, output } = req.body;
   try {
-    connectMidiDevice(output, input);
-    res.json({ ok: true, output: selectedOutputDevice, input: selectedInputDevice });
+    disconnectAllDevices();
+    const device = addMidiDevice(output, input);
+    res.json({ ok: true, output: device.outputName, input: device.inputName });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
 app.post('/api/disconnect', (req, res) => {
-  disconnectMidiDevice();
+  disconnectAllDevices();
   res.json({ ok: true });
 });
 
 app.get('/api/status', (req, res) => {
   res.json({
     mode: 'remote',
-    midiOutput: selectedOutputDevice,
-    midiInput: selectedInputDevice,
+    midiOutput: midiDevices[0]?.outputName || null,
+    midiInput: midiDevices[0]?.inputName || null,
+    connectedDevices: midiDevices.map(d => ({ id: d.id, inputName: d.inputName, outputName: d.outputName })),
     hostConnected,
     wsPort: LOCAL_WS_PORT,
     messageCount,
@@ -82,14 +115,29 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+app.get('/api/network-info', (req, res) => {
+  const interfaces = os.networkInterfaces();
+  const result = [];
+  Object.entries(interfaces).forEach(([name, addrs]) => {
+    addrs.forEach(addr => {
+      if (addr.family === 'IPv4' && !addr.internal) {
+        result.push({ name, ip: addr.address });
+      }
+    });
+  });
+  res.json(result);
+});
+
 const webServer = app.listen(LOCAL_WEB_PORT, () => {
-  log(`🌐 Painel web: http://localhost:${LOCAL_WEB_PORT}`);
+  const url = `http://localhost:${LOCAL_WEB_PORT}`;
+  log(`[WEB] Painel web: ${url}`);
+  setTimeout(() => exec(`start ${url}`), 1500);
 });
 
 // ── WebSocket interno para painel ─────────────────────────
 const panelWss = new WebSocket.Server({ server: webServer });
 panelWss.on('connection', (ws) => {
-  log('📱 Painel web conectado');
+  log('[WEB] Painel web conectado');
   sendToPanel({ type: 'status', data: getFullStatus() });
 });
 
@@ -101,84 +149,90 @@ function sendToPanel(data) {
 }
 
 // ── WebSocket Server (recebe do Host) ─────────────────────
+let stopBroadcaster = null;
 const wss = new WebSocket.Server({ port: LOCAL_WS_PORT }, () => {
-  log(`🔌 WebSocket server ouvindo na porta ${LOCAL_WS_PORT}`);
+  log(`[CONN] WebSocket server ouvindo na porta ${LOCAL_WS_PORT}`);
+  stopBroadcaster = startBroadcaster(LOCAL_WS_PORT);
 });
 
 wss.on('connection', (ws, req) => {
   const remoteAddr = req.socket.remoteAddress;
   hostSocket = ws;
   hostConnected = true;
-  log(`✅ Host conectado: ${remoteAddr}`);
+  log(`[ OK ] Host conectado: ${remoteAddr}`);
   sendToPanel({ type: 'ws_status', connected: true, host: remoteAddr });
 
   ws.on('message', (raw) => {
     try {
       const json = JSON.parse(raw.toString());
-
       if (isValidMidiJson(json)) {
         messageCount.received++;
         trackMessage('in', json);
         sendToPanel({ type: 'midi', direction: 'in', data: json });
 
-        // Enviar para loopMIDI → vMix
-        if (midiOutput) {
+        // Roteamento por deviceId: envia para o output correto
+        const targetDeviceId = json.deviceId ?? 0;
+        const targetDevice = midiDevices.find(d => d.id === targetDeviceId);
+        const outputToUse = targetDevice?.output || midiDevices[0]?.output || null;
+
+        if (outputToUse) {
           const converted = jsonToMidi(json);
           if (converted) {
-            midiOutput.send(converted.type, converted.msg);
+            outputToUse.send(converted.type, converted.msg);
           }
         }
       }
     } catch (err) {
-      log(`⚠️  Mensagem inválida do host: ${err.message}`);
+      log(`[WARN] Mensagem inválida do host: ${err.message}`);
     }
   });
 
   ws.on('close', () => {
     hostConnected = false;
     hostSocket = null;
-    log('🔴 Host desconectado');
+    log('[DROP] Host desconectado');
     sendToPanel({ type: 'ws_status', connected: false });
   });
 
   ws.on('error', (err) => {
-    log(`❌ Erro WebSocket: ${err.message}`);
+    log(`[FAIL] Erro WebSocket: ${err.message}`);
   });
 });
 
-// ── MIDI Device Connection ────────────────────────────────
-function connectMidiDevice(outputName, inputName) {
-  disconnectMidiDevice();
+// ── MIDI Device Management ────────────────────────────────
+function addMidiDevice(outputName, inputName) {
+  // Calcula o menor ID livre (0-3) para reutilizar slots apagados
+  const usedIds = new Set(midiDevices.map(d => d.id));
+  let deviceId = 0;
+  while (usedIds.has(deviceId) && deviceId < MAX_DEVICES) deviceId++;
+  if (deviceId >= MAX_DEVICES) throw new Error('Limite de dispositivos atingido');
 
-  // Output → envia para loopMIDI (vMix lê como MIDI device)
+  const device = { id: deviceId, outputName: outputName || null, inputName: inputName || null, output: null, input: null };
+
   if (outputName) {
-    const outputs = easymidi.getOutputs();
+    const outputs = safeGetOutputs();
     if (!outputs.includes(outputName)) throw new Error(`Output "${outputName}" não encontrado`);
-
-    midiOutput = new easymidi.Output(outputName);
-    selectedOutputDevice = outputName;
-    log(`📤 MIDI Output conectado: ${outputName} (→ vMix Shortcuts)`);
+    device.output = new easymidi.Output(outputName);
+    device.outputName = outputName;
+    log(`[ OUT] [Device #${deviceId}] MIDI Output: ${outputName} (→ vMix Shortcuts)`);
   }
 
-  // Input → lê do loopMIDI (vMix Activators envia feedback)
   if (inputName) {
-    const inputs = easymidi.getInputs();
+    const inputs = safeGetInputs();
     if (!inputs.includes(inputName)) throw new Error(`Input "${inputName}" não encontrado`);
+    device.input = new easymidi.Input(inputName);
+    device.inputName = inputName;
+    log(`[ IN ] [Device #${deviceId}] MIDI Input: ${inputName} (← vMix Activators)`);
 
-    midiInput = new easymidi.Input(inputName);
-    selectedInputDevice = inputName;
-    log(`📥 MIDI Input conectado: ${inputName} (← vMix Activators)`);
-
-    // Escutar feedback do vMix e enviar de volta ao Host
+    // Escuta feedback do vMix e reenvia ao Host com o deviceId correto
     Object.keys(MIDI_EVENT_MAP).forEach((type) => {
       if (type === 'sysex') return;
-      midiInput.on(type, (msg) => {
-        const json = midiToJson(type, msg);
+      device.input.on(type, (msg) => {
+        // Preserva o deviceId original para o Host rotear o feedback à controladora certa
+        const json = midiToJson(type, msg, deviceId);
         messageCount.sent++;
         trackMessage('out', json);
         sendToPanel({ type: 'midi', direction: 'out', data: json });
-
-        // Enviar feedback ao Host
         if (hostSocket && hostSocket.readyState === WebSocket.OPEN) {
           hostSocket.send(JSON.stringify(json));
         }
@@ -186,20 +240,30 @@ function connectMidiDevice(outputName, inputName) {
     });
   }
 
-  sendToPanel({ type: 'device_update', data: { output: selectedOutputDevice, input: selectedInputDevice } });
+  midiDevices.push(device);
+  sendToPanel({ type: 'device_update', data: getFullStatus() });
+  return device;
 }
 
-function disconnectMidiDevice() {
-  if (midiOutput) {
-    try { midiOutput.close(); } catch (e) { /* ignore */ }
-    midiOutput = null;
-    selectedOutputDevice = null;
-  }
-  if (midiInput) {
-    try { midiInput.close(); } catch (e) { /* ignore */ }
-    midiInput = null;
-    selectedInputDevice = null;
-  }
+function removeMidiDevice(deviceId) {
+  const idx = midiDevices.findIndex(d => d.id === deviceId);
+  if (idx === -1) return false;
+  const device = midiDevices[idx];
+  try { if (device.input) device.input.close(); } catch (e) { /* ignore */ }
+  try { if (device.output) device.output.close(); } catch (e) { /* ignore */ }
+  midiDevices.splice(idx, 1);
+  log(`[CONN] [Device #${deviceId}] Desconectado`);
+  sendToPanel({ type: 'device_update', data: getFullStatus() });
+  return true;
+}
+
+function disconnectAllDevices() {
+  midiDevices.forEach(d => {
+    try { if (d.input) d.input.close(); } catch (e) { /* ignore */ }
+    try { if (d.output) d.output.close(); } catch (e) { /* ignore */ }
+  });
+  midiDevices = [];
+  sendToPanel({ type: 'device_update', data: getFullStatus() });
 }
 
 // ── Helpers ───────────────────────────────────────────────
@@ -211,8 +275,9 @@ function trackMessage(direction, json) {
 function getFullStatus() {
   return {
     mode: 'remote',
-    midiOutput: selectedOutputDevice,
-    midiInput: selectedInputDevice,
+    midiOutput: midiDevices[0]?.outputName || null,
+    midiInput: midiDevices[0]?.inputName || null,
+    connectedDevices: midiDevices.map(d => ({ id: d.id, inputName: d.inputName, outputName: d.outputName })),
     hostConnected,
     wsPort: LOCAL_WS_PORT,
     messageCount,
@@ -221,69 +286,53 @@ function getFullStatus() {
   };
 }
 
-function safeGetInputs() {
-  try { return easymidi.getInputs(); } catch { return []; }
-}
-function safeGetOutputs() {
-  try { return easymidi.getOutputs(); } catch { return []; }
-}
-
-function log(msg) {
-  const ts = new Date().toLocaleTimeString('pt-BR');
-  console.log(`[${ts}] ${msg}`);
-}
+function safeGetInputs()  { try { return easymidi.getInputs();  } catch { return []; } }
+function safeGetOutputs() { try { return easymidi.getOutputs(); } catch { return []; } }
+function log(msg) { logEvent(msg, 'INFO', true); }
 
 function parseArgs(argv) {
   const result = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg.startsWith('--')) {
-      const key = arg.slice(2);
-      result[key] = argv[i + 1] || true;
-      i++;
-    } else if (arg.startsWith('-')) {
-      const key = arg.slice(1);
-      result[key] = argv[i + 1] || true;
-      i++;
-    }
+    if (arg.startsWith('--')) { result[arg.slice(2)] = argv[i + 1] || true; i++; }
+    else if (arg.startsWith('-')) { result[arg.slice(1)] = argv[i + 1] || true; i++; }
   }
   return result;
 }
 
 // ── Startup ───────────────────────────────────────────────
+initCrashHandler('remote');
+
 console.log('\n╔══════════════════════════════════════╗');
-console.log('║     USB-REMOTO — Modo REMOTE         ║');
+console.log('║     USB-REMOTO — Modo VMIX           ║');
+console.log('║   Dev: Fabiano Brandão | André Gribel║');
 console.log('╚══════════════════════════════════════╝\n');
 
-log('🎛️  Dispositivos MIDI detectados:');
-const inputs = safeGetInputs();
-const outputs = safeGetOutputs();
-inputs.forEach((d, i) => log(`   📥 Input  [${i}]: ${d}`));
-outputs.forEach((d, i) => log(`   📤 Output [${i}]: ${d}`));
+log('[MIDI] Dispositivos detectados:');
+safeGetInputs().forEach((d, i) => log(`  [IN]  Input  [${i}]: ${d}`));
+safeGetOutputs().forEach((d, i) => log(`  [OUT] Output [${i}]: ${d}`));
 
-if (outputs.length === 0) {
-  log('⚠️  Nenhum output MIDI encontrado. Certifique-se que o loopMIDI está rodando!');
+if (safeGetOutputs().length === 0) {
+  log('[WARN] Nenhum output MIDI encontrado. Certifique-se que o loopMIDI está rodando!');
 }
 
-// Auto-connect se passado via CLI
 if (CLI_MIDI_OUT || CLI_MIDI_IN) {
   try {
-    connectMidiDevice(CLI_MIDI_OUT, CLI_MIDI_IN);
+    addMidiDevice(CLI_MIDI_OUT, CLI_MIDI_IN);
   } catch (err) {
-    log(`❌ Erro ao conectar device via CLI: ${err.message}`);
+    log(`[FAIL] Erro ao conectar device via CLI: ${err.message}`);
   }
 }
 
-// Graceful shutdown
 process.on('SIGINT', () => {
-  log('👋 Encerrando...');
-  disconnectMidiDevice();
-  wss.close();
+  log('[EXIT] Encerrando...');
+  disconnectAllDevices();
+  if (stopBroadcaster) stopBroadcaster();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  disconnectMidiDevice();
-  wss.close();
+  disconnectAllDevices();
+  if (stopBroadcaster) stopBroadcaster();
   process.exit(0);
 });

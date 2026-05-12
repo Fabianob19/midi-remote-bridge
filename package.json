@@ -1,12 +1,16 @@
 {
   "name": "usb-remoto",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Bridge MIDI bidirecional via WebSocket — Controladora MIDI remota para vMix",
-  "main": "src/host.js",
+  "main": "src/main.js",
+  "bin": "src/main.js",
   "scripts": {
+    "start": "node src/main.js",
     "host": "node src/host.js",
     "remote": "node src/remote.js",
-    "list": "node -e \"const m=require('easymidi');console.log('\\n🎛️  MIDI Inputs:',m.getInputs());console.log('🎛️  MIDI Outputs:',m.getOutputs())\""
+    "list": "node -e \"const m=require('easymidi');console.log('\\n🎛️  MIDI Inputs:',m.getInputs());console.log('🎛️  MIDI Outputs:',m.getOutputs())\"",
+    "test": "node --test tests/**/*.test.js",
+    "build": "pkg . --targets node18-win-x64 --out-path dist && node apply_icon.js"
   },
   "keywords": [
     "midi",
@@ -16,10 +20,24 @@
     "bridge"
   ],
   "author": "Fabiano Brandão",
+  "contributors": [
+    "André Gribel"
+  ],
   "license": "MIT",
   "dependencies": {
     "easymidi": "^3.2.0",
     "express": "^5.2.1",
     "ws": "^8.20.0"
+  },
+  "pkg": {
+    "scripts": "src/**/*.js",
+    "assets": [
+      "src/web/**/*",
+      "node_modules/easymidi/build/Release/midi.node"
+    ]
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1",
+    "resedit": "^3.0.2"
   }
 }
