@@ -3,7 +3,7 @@
 **Bridge MIDI bidirecional via WebSocket** — Controle o vMix, OBS ou qualquer software MIDI remotamente usando suas controladoras USB via rede/VPN.
 
 ```
-PC Casa (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ PC Remoto (loopMIDI → vMix/OBS)
+OPERADOR / Host (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ VMIX / Remote (loopMIDI → vMix/OBS)
 ```
 
 ---
@@ -27,10 +27,10 @@ PC Casa (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ PC Remot
 
 ### Modo EXE (Recomendado)
 
-| PC | Requisitos |
+| Modo | Requisitos |
 |----|------------|
-| **Casa (Host)** | Windows 10/11, Controladora MIDI USB |
-| **Remoto (vMix)** | Windows 10/11, [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) |
+| **Operador (Host)** | Windows 10/11, Controladora MIDI USB |
+| **vMix (Remote)** | Windows 10/11, [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) |
 | **Ambos** | Rede/VPN ([ZeroTier](https://www.zerotier.com/), [Tailscale](https://tailscale.com/), etc.) |
 
 ### Modo Desenvolvedor
@@ -43,11 +43,14 @@ PC Casa (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ PC Remot
 
 ## Quick Start (Modo EXE)
 
+> **⚠️ OBRIGATÓRIO: Execute o `usb-remoto.exe` sempre como Administrador.**
+> Clique com o botão direito → "Executar como administrador". O acesso a dispositivos MIDI USB e portas de rede requer privilégios elevados.
+
 1. Baixe o `usb-remoto.exe` da [Releases](../../releases)
 2. Copie para ambos os PCs
-3. No **PC Remoto** (vMix): abra o loopMIDI e crie uma porta virtual
-4. Execute: `usb-remoto.exe --mode remote`
-5. No **PC Casa**: execute `usb-remoto.exe --mode host`
+3. No **vMix (Remote)**: abra o loopMIDI e crie uma porta virtual
+4. Clique direito no .exe → **Executar como administrador** → selecione `MODO VMIX`
+5. No **Operador (Host)**: clique direito no .exe → **Executar como administrador** → selecione `MODO OPERADOR`
 6. Acesse o painel web e configure as controladoras
 
 ---
@@ -88,7 +91,7 @@ MIDI Outputs: [ 'Launch Control XL', 'APC MINI', 'Microsoft GS Wavetable Synth' 
 
 ## Uso
 
-### PC Remoto (onde está o vMix/OBS)
+### vMix / Remote (onde o software de transmissão roda)
 
 ```bash
 # Modo simples
@@ -107,7 +110,7 @@ scripts\start-remote-minimized.bat    # Inicia oculto na barra de tarefas
 
 > **⚠️ IMPORTANTE:** Não feche a janela do terminal. Se quiser ocultar, use o atalho `minimized`.
 
-### PC Casa (onde estão as controladoras)
+### Operador / Host (onde as controladoras estão conectadas)
 
 ```bash
 # Modo simples
@@ -125,8 +128,8 @@ scripts\start-host-minimized.bat    # Inicia oculto na barra de tarefas
 
 > **⚠️ IMPORTANTE:** Não feche a janela do terminal. Se quiser ocultar, use o atalho `minimized`.
 
-**Como descobrir o IP do PC remoto:**
-Abra o ZeroTier no PC do vMix → copie o IP (ex: `10.147.20.53`).
+**Como descobrir o IP do Remote:**
+Abra o ZeroTier no PC onde roda o vMix → copie o IP (ex: `10.147.20.53`).
 
 ---
 
@@ -134,7 +137,7 @@ Abra o ZeroTier no PC do vMix → copie o IP (ex: `10.147.20.53`).
 
 ### Como funciona
 
-Conecte até **4 controladoras USB** simultaneamente no PC Casa. O painel web mostra **abas com cores táticas** para cada device:
+Conecte até **4 controladoras USB** simultaneamente no Operador (Host). O painel web mostra **abas com cores táticas** para cada device:
 
 | Device | Cor | Canal MIDI de Saída |
 |--------|-----|---------------------|
@@ -242,7 +245,7 @@ Isso facilita a identificação instantânea de qual controladora enviou cada me
 
 ### ❌ Conexão cai durante o uso
 - A reconexão é automática (a cada 3 segundos)
-- Se não reconectar, reinicie o host no PC Casa
+- Se não reconectar, reinicie o host no Operador
 
 ### ❌ Duas controladoras causam conflito no vMix
 - O USB-Remoto v3.0 já remapeia canais automaticamente
