@@ -313,6 +313,12 @@ npm test         # Roda 13 testes unitários
 | **Desenvolvimento** | Fabiano Brandão |
 | **Colaboração & Testes** | André Gribel |
 
+## Apoie o Projeto
+
+Se o USB-Remoto te ajudou nas suas transmissões, considere uma doação para manter o projeto gratuito e em evolução!
+
+[![Donate with PayPal](https://img.shields.io/badge/PayPal-Fazer%20Doação-0070ba?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate?hosted_button_id=DUHXQGVDREFYE)
+
 ## Licença
 
 MIT
