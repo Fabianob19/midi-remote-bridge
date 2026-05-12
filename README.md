@@ -1,177 +1,230 @@
-# 🎛️ USB-Remoto
+# USB-Remoto v3.0
 
-**Bridge MIDI bidirecional via WebSocket** — Use sua controladora MIDI local para controlar o vMix em outro PC via rede/VPN.
-
-## Como Funciona
+**Bridge MIDI bidirecional via WebSocket** — Controle o vMix, OBS ou qualquer software MIDI remotamente usando suas controladoras USB via rede/VPN.
 
 ```
-PC Casa (Controladora MIDI) ←──WebSocket/VPN──→ PC Remoto (loopMIDI → vMix)
+PC Casa (até 4 Controladoras MIDI) ←── WebSocket / VPN ──→ PC Remoto (loopMIDI → vMix/OBS)
 ```
-
-- **Faders** (CC 0-127) → Controlam volume, transições no vMix
-- **Botões** (Note On/Off) → Executam Shortcuts no vMix
-- **Feedback** (LEDs) ← vMix Activators enviam tally de volta
-
-## Requisitos
-
-| PC | Software |
-|---|---|
-| **Casa (Host)** | Node.js 18+, Controladora MIDI USB |
-| **Remoto (vMix)** | Node.js 18+, [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html), vMix |
-| **Ambos** | Rede/VPN (ZeroTier, Tailscale, etc.) |
 
 ---
 
-## Instalação Detalhada
+## Features v3.0
 
-### Passo 1: Instalar o Node.js (em ambos os PCs)
+| Feature | Descrição |
+|---------|-----------|
+| **Multi-Controladoras** | Até 4 controladoras USB simultâneas com isolamento por Device ID |
+| **Remapeamento de Canal** | Cada controladora sai automaticamente em um canal MIDI diferente (anti-conflito) |
+| **Auto-Discovery** | Host e Remote se encontram na rede automaticamente via broadcast UDP |
+| **Interface Tática** | Painel web com faders em tempo real, abas por device e log colorido |
+| **Cores por Device** | Device #1=Verde, #2=Laranja, #3=Ciano, #4=Magenta |
+| **Executável Standalone** | `.exe` pronto para rodar, sem precisar instalar Node.js |
+| **Feedback Bidirecional** | LEDs, tally e faders motorizados com roteamento por device |
+| **Reconexão Automática** | Queda de VPN? Reconecta sozinho em 3 segundos |
 
-Se ainda não tem o Node.js instalado:
+---
 
-1. Acesse: **https://nodejs.org**
-2. Clique em **"Download"** (versão LTS recomendada, 22.x)
-3. Execute o instalador `.msi` e siga Next → Next → Finish
-4. **Reinicie o terminal** (feche e abra de novo)
-5. Verifique se instalou corretamente:
+## Requisitos
+
+### Modo EXE (Recomendado)
+
+| PC | Requisitos |
+|----|------------|
+| **Casa (Host)** | Windows 10/11, Controladora MIDI USB |
+| **Remoto (vMix)** | Windows 10/11, [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) |
+| **Ambos** | Rede/VPN ([ZeroTier](https://www.zerotier.com/), [Tailscale](https://tailscale.com/), etc.) |
+
+### Modo Desenvolvedor
+
+| PC | Requisitos |
+|----|------------|
+| **Ambos** | Node.js 18+ (`node --version` para verificar) |
+
+---
+
+## Quick Start (Modo EXE)
+
+1. Baixe o `usb-remoto.exe` da [Releases](../../releases)
+2. Copie para ambos os PCs
+3. No **PC Remoto** (vMix): abra o loopMIDI e crie uma porta virtual
+4. Execute: `usb-remoto.exe --mode remote`
+5. No **PC Casa**: execute `usb-remoto.exe --mode host`
+6. Acesse o painel web e configure as controladoras
+
+---
+
+## Instalação (Modo Desenvolvedor)
+
+### 1. Instalar Node.js (ambos os PCs)
+
+1. Acesse: **https://nodejs.org** → Download LTS
+2. Execute o instalador → Next → Next → Finish
+3. Reinicie o terminal e verifique:
 
 ```powershell
-node --version
-# Deve mostrar algo como: v22.14.0
-
-npm --version
-# Deve mostrar algo como: 10.x.x
+node --version   # v22.x.x
+npm --version    # 10.x.x
 ```
 
-> Se o comando `node` não for reconhecido, reinicie o PC.
-
-### Passo 2: Extrair o ZIP
-
-1. Copie o arquivo `usb-remoto.zip` para o PC (via pen drive, ZeroTier, Google Drive, etc.)
-2. Extraia em uma pasta de fácil acesso, por exemplo:
-   - `C:\usb-remoto\` ou `D:\usb-remoto\`
-3. A estrutura deve ficar assim:
-
-```
-usb-remoto/
-├── package.json
-├── README.md
-├── src/
-│   ├── host.js
-│   ├── remote.js
-│   ├── shared/
-│   │   ├── constants.js
-│   │   └── midi-protocol.js
-│   └── web/
-│       ├── index.html
-│       ├── styles.css
-│       └── app.js
-└── scripts/
-    ├── start-host.bat
-    └── start-remote.bat
-```
-
-### Passo 3: Instalar dependências
-
-1. Abra o **Prompt de Comando** ou **PowerShell**
-2. Navegue até a pasta do projeto:
+### 2. Extrair e instalar dependências
 
 ```powershell
 cd C:\usb-remoto
-```
-
-3. Execute o comando de instalação:
-
-```powershell
 npm install
 ```
 
-4. Aguarde — vai baixar ~86 pacotes (~30 segundos)
-5. Deve terminar com:
-
-```
-added 86 packages, and audited 87 packages in 22s
-found 0 vulnerabilities
-```
-
-> Se der erro de permissão, tente rodar o terminal como **Administrador**.
-
-### Passo 4: Verificar se funciona
+### 3. Verificar dispositivos MIDI
 
 ```powershell
 npm run list
 ```
 
-Deve listar os dispositivos MIDI conectados, ex:
-
+Saída esperada:
 ```
-🎛️  MIDI Inputs: [ 'Launch Control XL', 'APC MINI' ]
-🎛️  MIDI Outputs: [ 'Launch Control XL', 'APC MINI', 'Microsoft GS Wavetable Synth' ]
+MIDI Inputs: [ 'Launch Control XL', 'APC MINI' ]
+MIDI Outputs: [ 'Launch Control XL', 'APC MINI', 'Microsoft GS Wavetable Synth' ]
 ```
-
-✅ Se viu os devices, está tudo pronto!
 
 ---
 
 ## Uso
 
-### 1. PC Remoto (onde está o vMix)
+### PC Remoto (onde está o vMix/OBS)
 
 ```bash
-# Iniciar loopMIDI e criar uma porta virtual (ex: "USB-Remoto")
-# Depois:
+# Modo simples
 npm run remote
 
-# Ou com atalhos Windows:
-scripts\start-remote.bat             # Abre janela (pode minimizar)
-scripts\start-remote-minimized.bat   # Já inicia oculto na barra de tarefas
-```
+# Com parâmetros
+node src/remote.js --midi-out "loopMIDI Port" --midi-in "loopMIDI Port"
 
-> **⚠️ IMPORTANTE:** Não feche a janela preta (CMD). Se fechar, o programa para e a conexão cai! Se quiser ocultar, use o atalho `minimized`.
+# Atalhos Windows
+scripts\start-remote.bat              # Abre janela
+scripts\start-remote-minimized.bat    # Inicia oculto na barra de tarefas
+```
 
 - Painel web: `http://localhost:9902`
 - WebSocket escuta na porta `9900`
-- Selecionar a porta loopMIDI no painel
 
-### 2. PC Casa (onde está a controladora)
+> **⚠️ IMPORTANTE:** Não feche a janela do terminal. Se quiser ocultar, use o atalho `minimized`.
+
+### PC Casa (onde estão as controladoras)
 
 ```bash
+# Modo simples
 npm run host
 
-# Ou com atalhos Windows:
-scripts\start-host.bat             # Abre janela (pode minimizar)
-scripts\start-host-minimized.bat   # Já inicia oculto na barra de tarefas
-```
+# Conectar direto a um IP
+npm run host -- --remote 10.147.20.53:9900
 
-> **⚠️ IMPORTANTE:** Não feche a janela preta (CMD). Se fechar, o programa para e a conexão cai! Se quiser ocultar, use o atalho `minimized`.
+# Atalhos Windows
+scripts\start-host.bat              # Abre janela
+scripts\start-host-minimized.bat    # Inicia oculto na barra de tarefas
+```
 
 - Painel web: `http://localhost:9901`
-- Selecionar a controladora MIDI no painel
-- Informar o **IP ZeroTier do PC remoto (vMix)** no campo "IP do Remoto"
 
-**⚠️ Como descobrir o IP do PC remoto:**
-No PC que roda o **vMix**, abra o ZeroTier e copie o IP dele (ex: `10.147.20.53`).
-Depois no painel do Host, coloque: `10.147.20.53:9900`
+> **⚠️ IMPORTANTE:** Não feche a janela do terminal. Se quiser ocultar, use o atalho `minimized`.
 
-Ou já passe direto na CLI:
-```bash
-npm run host -- --remote 10.147.20.53:9900
+**Como descobrir o IP do PC remoto:**
+Abra o ZeroTier no PC do vMix → copie o IP (ex: `10.147.20.53`).
+
+---
+
+## Multi-Controladoras (Novo v3.0)
+
+### Como funciona
+
+Conecte até **4 controladoras USB** simultaneamente no PC Casa. O painel web mostra **abas com cores táticas** para cada device:
+
+| Device | Cor | Canal MIDI de Saída |
+|--------|-----|---------------------|
+| Device #1 | 🟢 Verde Ácido | Canal 0 |
+| Device #2 | 🟠 Laranja Neon | Canal 1 |
+| Device #3 | 🔵 Ciano Elétrico | Canal 2 |
+| Device #4 | 🟣 Rosa Magenta | Canal 3 |
+
+### Remapeamento Automático de Canal
+
+O USB-Remoto **reescreve o canal MIDI automaticamente** antes de entregar ao vMix/OBS:
+
+```
+Sem USB-Remoto:
+  Mesa de Vídeo  → CH:0 CC:1 → vMix confunde com a outra mesa ❌
+  Mesa de Áudio  → CH:0 CC:1 → vMix confunde com a outra mesa ❌
+
+Com USB-Remoto v3.0:
+  Mesa de Vídeo (Device #1) → CH:0 CC:1 → vMix recebe no Canal 0 ✅
+  Mesa de Áudio (Device #2) → CH:1 CC:1 → vMix recebe no Canal 1 ✅
 ```
 
-### 3. Configurar vMix
+Isso permite usar **duas controladoras idênticas** (mesmo modelo, mesmos CCs) sem nenhum conflito.
+
+### Retrocompatibilidade
+
+Se você usa **apenas 1 controladora**, nada muda. O Device #1 usa Canal 0, exatamente como na versão anterior.
+
+---
+
+## Configurar vMix
+
+### Shortcuts (Controle → vMix)
 
 1. **Settings → Shortcuts → Add**
-   - Selecionar o device loopMIDI
-   - Mapear faders/botões para funções (SetVolume, Cut, etc.)
+2. Selecione o device **loopMIDI**
+3. Para multi-controladoras, filtre pelo **canal MIDI**:
+   - Canal 0 = Atalhos da mesa de vídeo (Device #1)
+   - Canal 1 = Atalhos da mesa de áudio (Device #2)
+4. Mapeie os faders/botões para funções (SetVolume, Cut, Fade, etc.)
 
-2. **Settings → Activators → Add**
-   - Selecionar o device loopMIDI
-   - Configurar feedback: Tally (Input Live), Volume Fader, etc.
+### Activators (vMix → Controle / Feedback)
+
+1. **Settings → Activators → Add**
+2. Selecione o device **loopMIDI**
+3. Configure feedback: Tally (Input Live), Volume, etc.
+
+---
+
+## Configurar OBS
+
+### Usando obs-midi plugin
+
+1. Instale o plugin [obs-midi](https://github.com/cpyarger/obs-midi)
+2. Em **Tools → obs-midi Settings**, selecione o device **loopMIDI**
+3. Para multi-controladoras, use o filtro de canal MIDI:
+   - Canal 0 = Controles de cena (Device #1)
+   - Canal 1 = Controles de áudio (Device #2)
+4. Mapeie CC/Notes para ações do OBS (Switch Scene, SetVolume, etc.)
+
+---
+
+## Auto-Discovery
+
+O USB-Remoto usa **broadcast UDP** para que Host e Remote se encontrem automaticamente na rede local ou VPN.
+
+- O Remote envia broadcasts periódicos na porta `9900`
+- O Host escuta e conecta automaticamente ao primeiro Remote encontrado
+- Se preferir, passe o IP manualmente: `--remote IP:PORTA`
+
+---
+
+## Terminal Log
+
+O painel web mostra um log em tempo real com **tags coloridas por device**:
+
+```
+[DEV#1] CH:0 CC [7] VAL:100     ← Verde (mesa de vídeo)
+[DEV#2] CH:1 CC [1] VAL:64      ← Laranja (mesa de áudio)
+```
+
+Isso facilita a identificação instantânea de qual controladora enviou cada mensagem.
+
+---
 
 ## Troubleshooting
 
 ### ❌ Conectou mas não recebe dados MIDI
-- **Desconecte e reconecte a controladora USB** após iniciar o host
-- Ou reinicie o `host.js` com a controladora já plugada
+- Desconecte e reconecte a controladora USB
+- Ou reinicie o host com a controladora já plugada
 - Ordem recomendada: **1º plugar a controladora → 2º iniciar o host**
 
 ### ❌ Device MIDI não aparece na lista
@@ -181,22 +234,33 @@ npm run host -- --remote 10.147.20.53:9900
 
 ### ❌ WebSocket não conecta
 - Verifique se o ZeroTier está ativo nos dois PCs
-- Teste: `ping IP_DO_REMOTO` — deve responder
-- Confirme que a porta **9900** não está bloqueada pelo firewall
-- No PC remoto, libere a porta: `netsh advfirewall firewall add rule name="USB-Remoto" dir=in action=allow protocol=TCP localport=9900`
+- Teste: `ping IP_DO_REMOTO`
+- Confirme que a porta **9900** não está bloqueada pelo firewall:
+  ```powershell
+  netsh advfirewall firewall add rule name="USB-Remoto" dir=in action=allow protocol=TCP localport=9900
+  ```
 
-### ❌ Conexão cai durante o programa
+### ❌ Conexão cai durante o uso
 - A reconexão é automática (a cada 3 segundos)
-- Se não reconectar, reinicie o `host.js` no PC casa
+- Se não reconectar, reinicie o host no PC Casa
+
+### ❌ Duas controladoras causam conflito no vMix
+- O USB-Remoto v3.0 já remapeia canais automaticamente
+- No vMix, configure os Shortcuts filtrando por **canal MIDI** (Canal 0, Canal 1, etc.)
+- Se o problema persistir, verifique se ambos os devices estão aparecendo no painel web
 
 ---
 
-## Controladoras Suportadas
+## Controladoras Testadas
 
-| Controladora | Faders CC | Botões |
-|---|---|---|
-| **Novation LaunchControl XL** | CC 77-84 (8 faders) | 16 botões + 24 knobs |
-| **Akai APC Mini** | CC 48-56 (9 faders) | 64 botões com LED |
+| Controladora | Faders | Botões | Observações |
+|---|---|---|---|
+| **Novation LaunchControl XL** | CC 77-84 (8 faders) | 16 botões + 24 knobs | Suporta troca de canal MIDI |
+| **Akai APC Mini** | CC 48-56 (9 faders) | 64 botões com LED RGB | Feedback visual completo |
+
+> Qualquer controladora MIDI USB Class-Compliant é compatível.
+
+---
 
 ## Parâmetros CLI
 
@@ -205,7 +269,11 @@ npm run host -- --remote 10.147.20.53:9900
 node src/host.js --remote IP:PORTA --port PORTA_WEB
 
 # Remote
-node src/remote.js --port PORTA_WS --web PORTA_WEB --midi-out "loopMIDI Port" --midi-in "loopMIDI Port"
+node src/remote.js --port PORTA_WS --web PORTA_WEB --midi-out "nome" --midi-in "nome"
+
+# EXE
+usb-remoto.exe --mode host --remote IP:PORTA
+usb-remoto.exe --mode remote --midi-out "loopMIDI Port"
 ```
 
 ## Portas Padrão
@@ -213,8 +281,26 @@ node src/remote.js --port PORTA_WS --web PORTA_WEB --midi-out "loopMIDI Port" --
 | Serviço | Porta |
 |---|---|
 | WebSocket (bridge MIDI) | 9900 |
-| Painel Web (host) | 9901 |
-| Painel Web (remote) | 9902 |
+| Painel Web (Host) | 9901 |
+| Painel Web (Remote) | 9902 |
+
+---
+
+## Build (Desenvolvedor)
+
+```bash
+npm run build    # Gera dist/usb-remoto.exe
+npm test         # Roda 13 testes unitários
+```
+
+---
+
+## Créditos
+
+| Função | Nome |
+|--------|------|
+| **Desenvolvimento** | Fabiano Brandão |
+| **Colaboração & Testes** | André Gribel |
 
 ## Licença
 
