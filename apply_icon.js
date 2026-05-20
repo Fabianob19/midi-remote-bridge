@@ -34,6 +34,16 @@ setTimeout(() => {
     const out = exe.generate();
     fs.writeFileSync(exePath, Buffer.from(out));
     console.log('Ícone e metadata aplicados com sucesso!');
+
+    // Gera cópia versionada dinamicamente com base no package.json
+    try {
+      const pkg = require('./package.json');
+      const versionedExePath = `dist/usb-remoto-v${pkg.version}.exe`;
+      fs.copyFileSync(exePath, versionedExePath);
+      console.log(`Cópia versionada gerada em: ${versionedExePath}`);
+    } catch (err) {
+      console.error('Erro ao gerar cópia versionada:', err.message);
+    }
   } catch (e) {
     console.error('Erro ao aplicar ícone:', e.message);
   }
