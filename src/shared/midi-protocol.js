@@ -53,11 +53,13 @@ function midiToJson(type, msg, deviceId = 0) {
 /**
  * Converte JSON de transporte em mensagem easymidi.
  * @param {object} json - Objeto JSON recebido via WebSocket
+ * @param {boolean} [disableRemap=false] - Se true, respeita o canal do JSON (usado no feedback do hardware)
  * @returns {{ type: string, msg: object, deviceId: number } | null}
  */
-function jsonToMidi(json) {
+function jsonToMidi(json, disableRemap = false) {
   // Remapeamento automático: canal = deviceId (evita conflito multi-device no vMix)
-  const channel = json.deviceId ?? json.channel ?? 0;
+  // Se disableRemap for true, respeita o canal nativo do hardware na via de volta
+  const channel = disableRemap ? (json.channel ?? 0) : (json.deviceId ?? json.channel ?? 0);
   const base = { channel };
   const deviceId = json.deviceId ?? 0;
 

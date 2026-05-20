@@ -238,8 +238,11 @@ Isso facilita a identificação instantânea de qual controladora enviou cada me
 - Ou reinicie o host com a controladora já plugada
 - Ordem recomendada: **1º plugar a controladora → 2º iniciar o host**
 
+### ❌ Erro: "Acesso Negado! O input está ocupado..."
+- **Causa:** Os drivers MIDI no Windows são exclusivos. Outro programa na mesma máquina (como vMix ou OBS local) agarrou a mesa física primeiro.
+- **Solução:** Feche o vMix/OBS local (ou desabilite o input MIDI dentro deles) e tente conectar novamente.
+
 ### ❌ Device MIDI não aparece na lista
-- Feche outros programas que usam MIDI (DAW, outro software)
 - Reconecte o USB da controladora
 - Execute `npm run list` para verificar
 

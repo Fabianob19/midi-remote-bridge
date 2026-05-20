@@ -212,7 +212,15 @@ function addMidiDevice(outputName, inputName) {
   if (outputName) {
     const outputs = safeGetOutputs();
     if (!outputs.includes(outputName)) throw new Error(`Output "${outputName}" não encontrado`);
-    device.output = new easymidi.Output(outputName);
+    
+    try {
+      device.output = new easymidi.Output(outputName);
+    } catch (err) {
+      const msg = `[ERRO] Acesso Negado! A porta virtual "${outputName}" esta ocupada por outro programa.`;
+      log(msg);
+      throw new Error(msg);
+    }
+    
     device.outputName = outputName;
     log(`[ OUT] [Device #${deviceId}] MIDI Output: ${outputName} (→ vMix Shortcuts)`);
   }
@@ -220,7 +228,15 @@ function addMidiDevice(outputName, inputName) {
   if (inputName) {
     const inputs = safeGetInputs();
     if (!inputs.includes(inputName)) throw new Error(`Input "${inputName}" não encontrado`);
-    device.input = new easymidi.Input(inputName);
+    
+    try {
+      device.input = new easymidi.Input(inputName);
+    } catch (err) {
+      const msg = `[ERRO] Acesso Negado! A porta virtual "${inputName}" esta ocupada por outro programa.`;
+      log(msg);
+      throw new Error(msg);
+    }
+    
     device.inputName = inputName;
     log(`[ IN ] [Device #${deviceId}] MIDI Input: ${inputName} (← vMix Activators)`);
 

@@ -180,17 +180,26 @@ function addMidiDevice(inputName, outputName) {
   while (usedIds.has(deviceId) && deviceId < MAX_DEVICES) deviceId++;
   if (deviceId >= MAX_DEVICES) throw new Error('Limite de dispositivos atingido');
 
-  const device = { id: deviceId, inputName: inputName || null, outputName: outputName || null, input: null, output: null };
+  const device = { id: deviceId, inputName: inputName || null, outputName: outputName || null, input: null, output: null, nativeChannel: 0 };
 
   if (inputName) {
     const inputs = safeGetInputs();
     if (!inputs.includes(inputName)) throw new Error(`Input "${inputName}" não encontrado`);
-    device.input = new easymidi.Input(inputName);
+    
+    try {
+      device.input = new easymidi.Input(inputName);
+    } catch (err) {
+      const msg = `[ERRO] Acesso Negado! O input "${inputName}" esta ocupado por outro programa (ex: vMix local). Feche-o e tente novamente.`;
+      log(msg);
+      throw new Error(msg);
+    }
+    
     log(`[MIDI] [Device #${deviceId}] Input conectado: ${inputName}`);
 
     Object.keys(MIDI_EVENT_MAP).forEach((type) => {
       if (type === 'sysex') return;
       device.input.on(type, (msg) => {
+        if (msg.channel !== undefined) device.nativeChannel = msg.channel; // Aprende o canal nativo da controladora
         const json = midiToJson(type, msg, deviceId);  // injeta deviceId no pacote
         onMidiMessage(json);
       });
@@ -200,7 +209,15 @@ function addMidiDevice(inputName, outputName) {
   if (outputName) {
     const outputs = safeGetOutputs();
     if (!outputs.includes(outputName)) throw new Error(`Output "${outputName}" não encontrado`);
-    device.output = new easymidi.Output(outputName);
+    
+    try {
+      device.output = new easymidi.Output(outputName);
+    } catch (err) {
+      const msg = `[ERRO] Acesso Negado! O output "${outputName}" esta ocupado por outro programa.`;
+      log(msg);
+      throw new Error(msg);
+    }
+    
     log(`[MIDI] [Device #${deviceId}] Output conectado: ${outputName}`);
   }
 
@@ -279,7 +296,11 @@ function connectToRemote(hostPort) {
         const outputToUse = targetDevice?.output || midiDevices[0]?.output || null;
 
         if (outputToUse) {
-          const converted = jsonToMidi(json);
+          // Des-remapeia o canal de volta para o canal nativo da controladora física
+          const nativeChannel = targetDevice?.nativeChannel ?? midiDevices[0]?.nativeChannel ?? 0;
+          const feedbackJson = { ...json, channel: nativeChannel };
+          
+          const converted = jsonToMidi(feedbackJson, true); // disableRemap = true
           if (converted) {
             outputToUse.send(converted.type, converted.msg);
           }
